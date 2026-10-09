@@ -22,15 +22,10 @@ void list_directory(const char *path) {
             }
         }
         
-        // KIỂM TRA: Nếu có cờ -l thì gọi hàm stat, nếu không thì in bình thường
-        if (current_options.show_long) {
-            print_long_format(path, entry->d_name);
-        } else {
-            printf("%s  ", entry->d_name);
-        }
+        // Gọi thẳng print_item, hàm này tự biết cờ nào đang bật để in cho đúng
+        print_item(path, entry->d_name);
     }
     
-    // Nếu in bình thường thì thêm dấu xuống dòng ở cuối danh sách
     if (!current_options.show_long) {
         printf("\n");
     }

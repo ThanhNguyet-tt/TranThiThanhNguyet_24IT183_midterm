@@ -2,9 +2,12 @@
 #define OPTIONS_H
 
 typedef struct {
-    int show_all;        // Cờ cho -a
-    int show_almost_all; // Cờ cho -A
-    int show_long;       // Cờ cho -l
+    int show_all;        // -a
+    int show_almost_all; // -A
+    int show_long;       // -l
+    int show_numeric;    // -n
+    int show_inode;      // -i
+    int show_blocks;     // -s
 } LsOptions;
 
 extern LsOptions current_options;

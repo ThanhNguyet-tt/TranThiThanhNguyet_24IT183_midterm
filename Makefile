@@ -16,7 +16,7 @@ listing.o: listing.c ls.h options.h display.h
 options.o: options.c options.h
 	$(CC) $(CFLAGS) -c options.c
 
-display.o: display.c display.h
+display.o: display.c display.h options.h
 	$(CC) $(CFLAGS) -c display.c
 
 clean:
