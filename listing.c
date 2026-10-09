@@ -2,18 +2,26 @@
 #include <stdlib.h>
 #include <string.h>
 #include <dirent.h>
+#include <sys/stat.h>
 #include "ls.h"
 #include "options.h"
 #include "display.h"
+#include "sorting.h"
 
 void list_directory(const char *path) {
-    DIR *dir = opendir(path);
-    if (dir == NULL) {
-        perror("myls");
+    if (current_options.dir_as_file) { // -d
+        print_item(".", path);
+        if (!current_options.show_long) printf("\n");
         return;
     }
 
+    DIR *dir = opendir(path);
+    if (dir == NULL) { perror("myls"); return; }
+
+    char **entries = malloc(4096 * sizeof(char *));
+    int count = 0;
     struct dirent *entry;
+
     while ((entry = readdir(dir)) != NULL) {
         if (entry->d_name[0] == '.') {
             if (!current_options.show_all && !current_options.show_almost_all) continue;
@@ -21,14 +29,32 @@ void list_directory(const char *path) {
                 if (strcmp(entry->d_name, ".") == 0 || strcmp(entry->d_name, "..") == 0) continue;
             }
         }
-        
-        // Gọi thẳng print_item, hàm này tự biết cờ nào đang bật để in cho đúng
-        print_item(path, entry->d_name);
+        entries[count++] = strdup(entry->d_name);
     }
-    
-    if (!current_options.show_long) {
-        printf("\n");
+    closedir(dir);
+
+    // Gọi hàm Sắp xếp
+    current_dir_for_sort = path;
+    qsort(entries, count, sizeof(char *), compare_entries);
+
+    // In danh sách
+    for (int i = 0; i < count; i++) print_item(path, entries[i]);
+    if (!current_options.show_long && count > 0) printf("\n");
+
+    // -R: Đệ quy đi sâu vào thư mục con
+    if (current_options.recursive) {
+        for (int i = 0; i < count; i++) {
+            if (strcmp(entries[i], ".") != 0 && strcmp(entries[i], "..") != 0) {
+                char f_path[1024]; snprintf(f_path, sizeof(f_path), "%s/%s", path, entries[i]);
+                struct stat st;
+                if (lstat(f_path, &st) == 0 && S_ISDIR(st.st_mode)) {
+                    printf("\n%s:\n", f_path);
+                    list_directory(f_path);
+                }
+            }
+        }
     }
 
-    closedir(dir);
+    for (int i = 0; i < count; i++) free(entries[i]);
+    free(entries);
 }
