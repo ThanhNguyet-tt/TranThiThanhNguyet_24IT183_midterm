@@ -3,6 +3,7 @@
 #include <string.h>
 #include <dirent.h>
 #include <sys/stat.h>
+#include <unistd.h>
 
 #include "ls.h"
 #include "options.h"
@@ -10,15 +11,43 @@
 #include "sorting.h"
 #include "listing.h"
 
-void list_directory(const char *path) {
-// Neu doi tuong can liet ke la file, hien thi truc tiep
-if (current_options.dir_as_file) {
-print_item(".", path);
+// Tinh tong so block cua cac muc trong thu muc
+static unsigned long long calculate_total(
+    const char *path,
+    char **entries,
+    size_t count
+) {
+    unsigned long long total = 0;
 
-    if (!current_options.show_long) {
-        printf("\n");
+    for (size_t i = 0; i < count; i++) {
+        char full_path[4096];
+
+        int len = snprintf(
+            full_path,
+            sizeof(full_path),
+            "%s/%s",
+            path,
+            entries[i]
+        );
+
+        if (len < 0 || (size_t)len >= sizeof(full_path)) {
+            continue;
+        }
+
+        struct stat st;
+
+        if (lstat(full_path, &st) == 0) {
+            total += (unsigned long long)st.st_blocks;
+        }
     }
 
+    return total;
+}
+void list_directory(const char *path) {
+// Neu doi tuong can liet ke la file, hien thi truc tiep
+
+if (current_options.dir_as_file) {
+    print_item("", path);
     return;
 }
 
@@ -119,6 +148,14 @@ if (!current_options.sort_none) {
         sizeof(*entries),
         compare_entries
     );
+}
+
+// Hien thi cac muc trong thu muc
+// In tong block khi dung -s va dau ra la terminal
+if (current_options.show_blocks &&
+    isatty(STDOUT_FILENO)) {
+    printf("total %llu\n",
+           calculate_total(path, entries, count));
 }
 
 // Hien thi cac muc trong thu muc
