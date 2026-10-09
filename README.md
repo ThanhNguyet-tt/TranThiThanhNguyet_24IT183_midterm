@@ -6,21 +6,16 @@
 * **Class/University:** VKU
 
 ## 2. Project Description
-This project implements a simplified, modular version of the UNIX `ls(1)` command written in C, adhering to POSIX system calls (`opendir`, `readdir`, `lstat`) to retrieve filesystem metadata, directory structures, and correct output formatting.
+This project implements a simplified version of the UNIX ls(1) command in C, using POSIX system calls (opendir, readdir, lstat).
 
-## 3. Features Implemented & Checked
-* **Visibility:** `-a`, `-A`, `-d`, `-R`
-* **Format:** `-l`, `-n`, `-i`, `-s`, `-k`, `-h`, `-F`
-* **Sorting:** `-f` (no sort), `-r` (reverse), `-S` (size), `-t` (time)
-* **Time fields:** `-c` (change time), `-u` (access time)
-* **Characters:** `-q`, `-w`
-* **Memory Safety:** Implemented dynamic resizing with `realloc()` to prevent overflow in large directories. Safely null-terminates string buffers with `strncpy()`.
+## 3. Implemented Features
+* **Visibility:** -a, -A, -d, -R
+* **Format:** -l, -n, -i, -s, -k, -h, -F
+* **Sorting:** -f (no sort), -r (reverse), -S (size), -t (time)
+* **Time:** -c, -u
+* **Characters:** -q, -w
 
 ## 4. Compilation & Usage
-To compile the project:
-`make clean`
-`make`
-
-Running examples:
-`./myls -la`
-`./myls -lSr`
+make clean
+make
+./myls -la
