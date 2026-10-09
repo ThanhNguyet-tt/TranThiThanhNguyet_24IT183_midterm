@@ -1,5 +1,5 @@
 CC = gcc
-CFLAGS = -Wall -Wextra -std=c11
+CFLAGS = -Wall -Wextra -std=gnu11
 TARGET = myls
 
 OBJS = main.o listing.o options.o display.o
