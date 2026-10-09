@@ -3,69 +3,177 @@
 #include <string.h>
 #include <dirent.h>
 #include <sys/stat.h>
+
 #include "ls.h"
 #include "options.h"
 #include "display.h"
 #include "sorting.h"
+#include "listing.h"
 
 void list_directory(const char *path) {
-    if (current_options.dir_as_file) {
-        print_item(".", path);
-        if (!current_options.show_long) printf("\n");
+// Neu doi tuong can liet ke la file, hien thi truc tiep
+if (current_options.dir_as_file) {
+print_item(".", path);
+
+    if (!current_options.show_long) {
+        printf("\n");
+    }
+
+    return;
+}
+
+// Mo thu muc
+DIR *dir = opendir(path);
+
+if (dir == NULL) {
+    perror("myls");
+    return;
+}
+
+// Cap phat bo nho de luu ten cac muc trong thu muc
+size_t capacity = 64;
+size_t count = 0;
+
+char **entries = malloc(capacity * sizeof(*entries));
+
+if (entries == NULL) {
+    perror("malloc");
+    closedir(dir);
+    return;
+}
+
+struct dirent *entry;
+
+// Doc tung muc trong thu muc
+while ((entry = readdir(dir)) != NULL) {
+    // Xu ly cac file an bat dau bang dau cham
+    if (entry->d_name[0] == '.') {
+        // Khong hien thi file an neu khong co -a hoac -A
+        if (!current_options.show_all &&
+            !current_options.show_almost_all) {
+            continue;
+        }
+
+        // -A hien thi file an nhung bo qua . va ..
+        if (current_options.show_almost_all &&
+            !current_options.show_all &&
+            (strcmp(entry->d_name, ".") == 0 ||
+             strcmp(entry->d_name, "..") == 0)) {
+            continue;
+        }
+    }
+
+    // Neu mang da day thi tang kich thuoc
+    if (count == capacity) {
+        size_t new_capacity = capacity * 2;
+
+        char **temp = realloc(
+            entries,
+            new_capacity * sizeof(*entries)
+        );
+
+        if (temp == NULL) {
+            perror("realloc");
+
+            for (size_t i = 0; i < count; i++) {
+                free(entries[i]);
+            }
+
+            free(entries);
+            closedir(dir);
+            return;
+        }
+
+        entries = temp;
+        capacity = new_capacity;
+    }
+
+    // Luu ten muc vao mang
+    entries[count] = strdup(entry->d_name);
+
+    if (entries[count] == NULL) {
+        perror("strdup");
+
+        for (size_t i = 0; i < count; i++) {
+            free(entries[i]);
+        }
+
+        free(entries);
+        closedir(dir);
         return;
     }
 
-    DIR *dir = opendir(path);
-    if (dir == NULL) { perror("myls"); return; }
+    count++;
+}
 
-    // FIX 2: Cấp phát động với realloc để chống tràn bộ nhớ
-    int capacity = 1024;
-    char **entries = malloc(capacity * sizeof(char *));
-    if (!entries) { closedir(dir); return; }
+// Dong thu muc sau khi doc xong
+closedir(dir);
 
-    int count = 0;
-    struct dirent *entry;
+// Sap xep cac muc neu khong su dung -f
+if (!current_options.sort_none) {
+    current_dir_for_sort = path;
 
-    while ((entry = readdir(dir)) != NULL) {
-        if (entry->d_name[0] == '.') {
-            if (!current_options.show_all && !current_options.show_almost_all) continue;
-            if (current_options.show_almost_all && !current_options.show_all) {
-                if (strcmp(entry->d_name, ".") == 0 || strcmp(entry->d_name, "..") == 0) continue;
-            }
+    qsort(
+        entries,
+        count,
+        sizeof(*entries),
+        compare_entries
+    );
+}
+
+// Hien thi cac muc trong thu muc
+for (size_t i = 0; i < count; i++) {
+    print_item(path, entries[i]);
+}
+
+// Xuong dong sau khi hien thi danh sach
+if (!current_options.show_long && count > 0) {
+    printf("\n");
+}
+
+// Duyet cac thu muc con neu co tuy chon -R
+if (current_options.recursive) {
+    for (size_t i = 0; i < count; i++) {
+        // Bo qua thu muc hien tai va thu muc cha
+        if (strcmp(entries[i], ".") == 0 ||
+            strcmp(entries[i], "..") == 0) {
+            continue;
         }
-        
-        if (count >= capacity) {
-            capacity *= 2;
-            char **temp = realloc(entries, capacity * sizeof(char *));
-            if (!temp) break;
-            entries = temp;
+
+        // Tao duong dan day du
+        char f_path[4096];
+
+        int len = snprintf(
+            f_path,
+            sizeof(f_path),
+            "%s/%s",
+            path,
+            entries[i]
+        );
+
+        // Kiem tra duong dan co qua dai khong
+        if (len < 0 || (size_t)len >= sizeof(f_path)) {
+            fprintf(stderr, "myls: path too long\n");
+            continue;
         }
-        entries[count++] = strdup(entry->d_name);
-    }
-    closedir(dir);
 
-    // FIX 3: Chỉ gọi qsort nếu KHÔNG dùng cờ -f
-    if (!current_options.sort_none) {
-        current_dir_for_sort = path;
-        qsort(entries, count, sizeof(char *), compare_entries);
-    }
+        struct stat st;
 
-    for (int i = 0; i < count; i++) print_item(path, entries[i]);
-    if (!current_options.show_long && count > 0) printf("\n");
+        // Chi de quy neu muc la thu muc that
+        if (lstat(f_path, &st) == 0 &&
+            S_ISDIR(st.st_mode)) {
+            printf("\n%s:\n", f_path);
 
-    if (current_options.recursive) {
-        for (int i = 0; i < count; i++) {
-            if (strcmp(entries[i], ".") != 0 && strcmp(entries[i], "..") != 0) {
-                char f_path[1024]; snprintf(f_path, sizeof(f_path), "%s/%s", path, entries[i]);
-                struct stat st;
-                if (lstat(f_path, &st) == 0 && S_ISDIR(st.st_mode)) {
-                    printf("\n%s:\n", f_path);
-                    list_directory(f_path);
-                }
-            }
+            list_directory(f_path);
         }
     }
+}
 
-    for (int i = 0; i < count; i++) free(entries[i]);
-    free(entries);
+// Giai phong bo nho
+for (size_t i = 0; i < count; i++) {
+    free(entries[i]);
+}
+
+free(entries);
+
 }
