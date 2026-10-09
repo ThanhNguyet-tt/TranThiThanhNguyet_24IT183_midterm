@@ -18,10 +18,10 @@ void list_directory(const char *path) {
     DIR *dir = opendir(path);
     if (dir == NULL) { perror("myls"); return; }
 
-    // BẮT ĐẦU FIX: Sử dụng cấp phát động mở rộng tự động bằng realloc
+    // FIX 2: Cấp phát động với realloc để chống tràn bộ nhớ
     int capacity = 1024;
     char **entries = malloc(capacity * sizeof(char *));
-    if (!entries) { perror("malloc"); closedir(dir); return; }
+    if (!entries) { closedir(dir); return; }
 
     int count = 0;
     struct dirent *entry;
@@ -34,26 +34,25 @@ void list_directory(const char *path) {
             }
         }
         
-        // Kiem tra gioi han va mo rong bo nho nếu vượt quá capacity
         if (count >= capacity) {
             capacity *= 2;
             char **temp = realloc(entries, capacity * sizeof(char *));
-            if (!temp) { perror("realloc"); break; }
+            if (!temp) break;
             entries = temp;
         }
         entries[count++] = strdup(entry->d_name);
     }
     closedir(dir);
 
-    // Sap xep
-    current_dir_for_sort = path;
-    qsort(entries, count, sizeof(char *), compare_entries);
+    // FIX 3: Chỉ gọi qsort nếu KHÔNG dùng cờ -f
+    if (!current_options.sort_none) {
+        current_dir_for_sort = path;
+        qsort(entries, count, sizeof(char *), compare_entries);
+    }
 
-    // In danh sach
     for (int i = 0; i < count; i++) print_item(path, entries[i]);
     if (!current_options.show_long && count > 0) printf("\n");
 
-    // De quy -R
     if (current_options.recursive) {
         for (int i = 0; i < count; i++) {
             if (strcmp(entries[i], ".") != 0 && strcmp(entries[i], "..") != 0) {
@@ -67,7 +66,6 @@ void list_directory(const char *path) {
         }
     }
 
-    // FIX: Giải phóng bộ nhớ chuỗi strdup() cực kỳ an toàn
     for (int i = 0; i < count; i++) free(entries[i]);
     free(entries);
 }
