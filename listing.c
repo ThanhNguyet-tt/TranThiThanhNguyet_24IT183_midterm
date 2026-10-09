@@ -9,7 +9,7 @@
 #include "sorting.h"
 
 void list_directory(const char *path) {
-    if (current_options.dir_as_file) { // -d
+    if (current_options.dir_as_file) {
         print_item(".", path);
         if (!current_options.show_long) printf("\n");
         return;
@@ -18,7 +18,11 @@ void list_directory(const char *path) {
     DIR *dir = opendir(path);
     if (dir == NULL) { perror("myls"); return; }
 
-    char **entries = malloc(4096 * sizeof(char *));
+    // BẮT ĐẦU FIX: Sử dụng cấp phát động mở rộng tự động bằng realloc
+    int capacity = 1024;
+    char **entries = malloc(capacity * sizeof(char *));
+    if (!entries) { perror("malloc"); closedir(dir); return; }
+
     int count = 0;
     struct dirent *entry;
 
@@ -29,19 +33,27 @@ void list_directory(const char *path) {
                 if (strcmp(entry->d_name, ".") == 0 || strcmp(entry->d_name, "..") == 0) continue;
             }
         }
+        
+        // Kiem tra gioi han va mo rong bo nho nếu vượt quá capacity
+        if (count >= capacity) {
+            capacity *= 2;
+            char **temp = realloc(entries, capacity * sizeof(char *));
+            if (!temp) { perror("realloc"); break; }
+            entries = temp;
+        }
         entries[count++] = strdup(entry->d_name);
     }
     closedir(dir);
 
-    // Gọi hàm Sắp xếp
+    // Sap xep
     current_dir_for_sort = path;
     qsort(entries, count, sizeof(char *), compare_entries);
 
-    // In danh sách
+    // In danh sach
     for (int i = 0; i < count; i++) print_item(path, entries[i]);
     if (!current_options.show_long && count > 0) printf("\n");
 
-    // -R: Đệ quy đi sâu vào thư mục con
+    // De quy -R
     if (current_options.recursive) {
         for (int i = 0; i < count; i++) {
             if (strcmp(entries[i], ".") != 0 && strcmp(entries[i], "..") != 0) {
@@ -55,6 +67,7 @@ void list_directory(const char *path) {
         }
     }
 
+    // FIX: Giải phóng bộ nhớ chuỗi strdup() cực kỳ an toàn
     for (int i = 0; i < count; i++) free(entries[i]);
     free(entries);
 }
