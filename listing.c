@@ -150,10 +150,11 @@ if (!current_options.sort_none) {
     );
 }
 
-// Hien thi cac muc trong thu muc
-// In tong block khi dung -s va dau ra la terminal
-if (current_options.show_blocks &&
-    isatty(STDOUT_FILENO)) {
+// In tong block khi dung -l hoac -s
+if (current_options.show_long ||
+    (current_options.show_blocks &&
+     isatty(STDOUT_FILENO))) {
+
     printf("total %llu\n",
            calculate_total(path, entries, count));
 }

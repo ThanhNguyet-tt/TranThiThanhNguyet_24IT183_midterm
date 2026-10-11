@@ -1,2 +1,17 @@
+
+# Compiled files
 *.o
+*.exe
 myls
+
+# Backup files
+*.bak
+*~
+
+# Test files and directories
+test.txt
+test_sort/
+testdir/
+
+# Editor files
+.vscode/
