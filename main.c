@@ -60,8 +60,7 @@ int main(int argc, char *argv[])
     // Neu khong co doi so
     if (optind == argc)
     {
-        list_directory(".");
-        return 0;
+       return list_directory(".");
     }
 
     // Tao mang chua cac doi so
@@ -131,9 +130,12 @@ int main(int argc, char *argv[])
                     printf("%s:\n", paths[i]);
                 }
 
-                list_directory(paths[i]);
-                printed = 1;
-            }
+if (list_directory(paths[i]) != 0)
+{
+    error_status = 1;
+}
+
+printed = 1;            }
         }
     }
 
